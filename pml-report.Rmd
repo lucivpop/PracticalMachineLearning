@@ -1,0 +1,95 @@
+---
+title: "Practical Machine Learning Project"
+author: "PL"
+date: "Monday, December 22, 2014"
+output: html_document
+---
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+```{r echo=FALSE}
+library(caret)
+library(randomForest)
+```
+
+## Get and clean data
+```{r}
+# Load data frames for training and testing
+training<-read.csv("pml-training.csv", header=T, sep=",", na.strings=c("","#DIV/0!","NA"))
+testing<-read.csv("pml-testing.csv", header=T, sep=",", na.strings=c("","#DIV/0!","NA"))
+
+# Cleaning data frames
+# Replace DIV/0, "NA"strings and "" with NA
+col.na<-c()
+cols<-dim(training)[2]
+for (i in 1:cols){
+    if (anyNA(training[,i])) {col.na<-c(col.na,i)}
+}
+col.na<-c(col.na,1:7)
+
+train<-training[,-col.na]
+test<-testing[,-col.na]
+```
+
+## Partition data
+```{r}
+# Partition data for model training and testing
+idx<-createDataPartition(y=train$classe,p=0.75,list=F)
+traindf<-train[idx,]
+testdf<-train[-idx,]
+```
+
+## Training a Random Forest Model 
+```{r}
+rf<-randomForest(traindf$classe ~.,data = traindf,importance = TRUE)
+```
+
+## Prediction on train and test data and Accuracy of the model
+```{r}
+traindf.predictions <- predict(rf, newdata=traindf)
+cfm1<-confusionMatrix(traindf.predictions,traindf$classe)
+# Prediction on train data
+cfm1
+# Accuracy on train data
+cfm1$overall
+
+testdf.predictions <- predict(rf, newdata=testdf)
+cfm2<-confusionMatrix(testdf.predictions,testdf$classe)
+# Prediction on test data
+cfm2
+# Accuracy on test data
+cfm2$overall
+```
+
+## Training error 
+The error decreases as the number of trees increases. 
+```{r}
+plot(rf,main="Training Error vs number of trees")
+```
+
+## Coursera data test
+```{r eval=FALSE}
+var.names <- colnames(traindf)
+newdata     <- testing
+
+pml_write_files = function(x){
+    n = length(x)
+    for(i in 1:n){
+        filename = paste0("problem_id_",i,".txt")
+        write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+    }
+}
+
+x <- newdata
+x <- x[var.names[var.names!='classe']]
+answers <- predict(rf, newdata=x)
+
+pml_write_files(answers)
+```
+
+
+
+
+
+
